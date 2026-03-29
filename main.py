@@ -319,10 +319,20 @@ def notify_photo():
 
 @app.route("/notify", methods=["POST"])
 def notify():
-    data = request.json
-    msg  = data.get("message", "")
+    data         = request.json
+    msg          = data.get("message", "")
+    delete_after = data.get("delete_after", 0)
     if msg:
-        asyncio.run(Bot(token=TOKEN).send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown"))
+        async def send_and_delete():
+            bot  = Bot(token=TOKEN)
+            sent = await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown")
+            if delete_after > 0:
+                await asyncio.sleep(delete_after)
+                try:
+                    await bot.delete_message(chat_id=CHAT_ID, message_id=sent.message_id)
+                except:
+                    pass
+        asyncio.run(send_and_delete())
     return jsonify({"ok": True})
 
 @app.route("/clear", methods=["GET"])
