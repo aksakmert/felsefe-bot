@@ -397,28 +397,74 @@ def result():
     data        = request.json
     trade_id    = data.get("trade_id")
     result_type = data.get("result")
-    risk_dolar  = 50.0
+    real_profit = data.get("profit", None)  # MT5'ten gelen gerçek kar/zarar
     trade = next((t for t in trades if t["id"] == trade_id), None)
     if not trade:
         return jsonify({"error": "trade not found"}), 404
 
+    yon      = trade.get("yon", "short")
+    yon_icon = "📉 SHORT" if yon == "short" else "📈 LONG"
+
     if result_type == "tp":
-        profit = round(risk_dolar * trade["rr"], 2)
+        profit = real_profit if real_profit is not None else 0
         trade["status"] = "tp"
         trade["result"] = profit
         msg = (
             f"🏆 *DÖNÜŞÜM TAMAMLANDI!* | #{trade_id}\n"
             f"━━━━━━━━━━━━━━━\n"
             f"⚛️ Element: `{trade['symbol']}`\n"
-            f"📉 Yön: SHORT\n"
+            f"Yön: {yon_icon}\n"
             f"━━━━━━━━━━━━━━━\n"
             f"🎯 Entry: `{trade['entry']}`\n"
             f"🔴 SL: `{trade['sl']}`\n"
             f"✅ TP: `{trade['tp']}`\n"
             f"⚖️ RR: `{trade['rr']}R`\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"💰 Kâr: `+{profit}$`\n"
+            f"💰 Kâr: `+{round(profit, 2)}$`\n"
             f"🚀 Harika dönüşüm!"
+        )
+    else:
+        profit = real_profit if real_profit is not None else 0
+        trade["status"] = "sl"
+        trade["result"] = profit
+        msg = (
+            f"🛑 *DÖNÜŞÜM DURDU!* | #{trade_id}\n"
+            f"━━━━━━━━━━━━━━━\n"
+            f"⚛️ Element: `{trade['symbol']}`\n"
+            f"Yön: {yon_icon}\n"
+            f"━━━━━━━━━━━━━━━\n"
+            f"🎯 Entry: `{trade['entry']}`\n"
+            f"🔴 SL: `{trade['sl']}`\n"
+            f"✅ TP: `{trade['tp']}`\n"
+            f"⚖️ RR: `{trade['rr']}R`\n"
+            f"━━━━━━━━━━━━━━━\n"
+            f"💥 Zarar: `{round(profit, 2)}$`\n"
+            f"📊 Disiplin korunuyor."
+        )
+
+    save_trades()
+
+    message_id = trade.get("message_id")
+    async def edit():
+        bot = Bot(token=TOKEN)
+        if message_id:
+            try:
+                await bot.edit_message_caption(
+                    chat_id=CHAT_ID, message_id=message_id,
+                    caption=msg, parse_mode="Markdown"
+                )
+            except:
+                try:
+                    await bot.edit_message_text(
+                        chat_id=CHAT_ID, message_id=message_id,
+                        text=msg, parse_mode="Markdown"
+                    )
+                except:
+                    await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown")
+        else:
+            await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown")
+    asyncio.run(edit())
+    return jsonify({"ok": True})
         )
     else:
         trade["status"] = "sl"
@@ -603,7 +649,15 @@ def report(period):
         msg = get_report_monthly(filtered)
     else:
         return jsonify({"error": "invalid period"}), 400
-    asyncio.run(Bot(token=TOKEN).send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown"))
+    async def send_and_delete():
+        bot  = Bot(token=TOKEN)
+        sent = await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown")
+        await asyncio.sleep(60)
+        try:
+            await bot.delete_message(chat_id=CHAT_ID, message_id=sent.message_id)
+        except:
+            pass
+    asyncio.run(send_and_delete())
     return jsonify({"ok": True})
 
 @app.route("/haber_all", methods=["GET"])
@@ -630,7 +684,15 @@ def haber_all():
             count += 1
         if count == 0:
             msg += "Bugün haber yok."
-        asyncio.run(Bot(token=TOKEN).send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown"))
+        async def send_and_delete():
+            bot  = Bot(token=TOKEN)
+            sent = await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown")
+            await asyncio.sleep(60)
+            try:
+                await bot.delete_message(chat_id=CHAT_ID, message_id=sent.message_id)
+            except:
+                pass
+        asyncio.run(send_and_delete())
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)})
@@ -661,7 +723,15 @@ def haber_important():
             count += 1
         if count == 0:
             msg += "✅ Bugün önemli haber yok."
-        asyncio.run(Bot(token=TOKEN).send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown"))
+        async def send_and_delete():
+            bot  = Bot(token=TOKEN)
+            sent = await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown")
+            await asyncio.sleep(60)
+            try:
+                await bot.delete_message(chat_id=CHAT_ID, message_id=sent.message_id)
+            except:
+                pass
+        asyncio.run(send_and_delete())
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)})
