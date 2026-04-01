@@ -220,7 +220,8 @@ async def process_update(data):
                     "/kapat", "kapat", "/durdur", "durdur", "/baslat", "baslat",
                     "/haber", "haber", "/news", "news"]:
             cmd = text.replace("/", "").lower()
-            pending_commands.append(cmd)
+            if cmd not in pending_commands:
+                pending_commands.append(cmd)
             # 1) Kullanıcının yazdığı mesajı sil
             try:
                 await bot.delete_message(chat_id=CHAT_ID, message_id=update.message.message_id)
@@ -332,7 +333,10 @@ def notify():
                     await bot.delete_message(chat_id=CHAT_ID, message_id=sent.message_id)
                 except:
                     pass
-        asyncio.run(send_and_delete())
+        import threading
+        def run():
+            asyncio.run(send_and_delete())
+        threading.Thread(target=run, daemon=True).start()
     return jsonify({"ok": True})
 
 @app.route("/clear", methods=["GET"])
@@ -613,7 +617,10 @@ def report(period):
             await bot.delete_message(chat_id=CHAT_ID, message_id=sent.message_id)
         except:
             pass
-    asyncio.run(send_and_delete())
+    import threading
+    def run():
+        asyncio.run(send_and_delete())
+    threading.Thread(target=run, daemon=True).start()
     return jsonify({"ok": True})
 
 @app.route("/haber_all", methods=["GET"])
@@ -648,7 +655,8 @@ def haber_all():
                 await bot.delete_message(chat_id=CHAT_ID, message_id=sent.message_id)
             except:
                 pass
-        asyncio.run(send_and_delete())
+        import threading
+        threading.Thread(target=lambda: asyncio.run(send_and_delete()), daemon=True).start()
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)})
@@ -679,7 +687,7 @@ def haber_important():
             count += 1
         if count == 0:
             msg += "✅ Bugün önemli haber yok."
-        async def send_and_delete():
+        async def send_and_delete2():
             bot  = Bot(token=TOKEN)
             sent = await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown")
             await asyncio.sleep(60)
@@ -687,7 +695,7 @@ def haber_important():
                 await bot.delete_message(chat_id=CHAT_ID, message_id=sent.message_id)
             except:
                 pass
-        asyncio.run(send_and_delete())
+        threading.Thread(target=lambda: asyncio.run(send_and_delete2()), daemon=True).start()
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)})
