@@ -465,50 +465,6 @@ def result():
             await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown")
     asyncio.run(edit())
     return jsonify({"ok": True})
-        )
-    else:
-        trade["status"] = "sl"
-        trade["result"] = -risk_dolar
-        msg = (
-            f"🛑 *DÖNÜŞÜM DURDU!* | #{trade_id}\n"
-            f"━━━━━━━━━━━━━━━\n"
-            f"⚛️ Element: `{trade['symbol']}`\n"
-            f"📉 Yön: SHORT\n"
-            f"━━━━━━━━━━━━━━━\n"
-            f"🎯 Entry: `{trade['entry']}`\n"
-            f"🔴 SL: `{trade['sl']}`\n"
-            f"✅ TP: `{trade['tp']}`\n"
-            f"⚖️ RR: `{trade['rr']}R`\n"
-            f"━━━━━━━━━━━━━━━\n"
-            f"💥 Zarar: `-{risk_dolar}$`\n"
-            f"📊 Disiplin korunuyor."
-        )
-
-    save_trades()
-
-    # Orijinal mesajı düzenle
-    message_id = trade.get("message_id")
-    async def edit():
-        bot = Bot(token=TOKEN)
-        if message_id:
-            try:
-                await bot.edit_message_caption(
-                    chat_id=CHAT_ID, message_id=message_id,
-                    caption=msg, parse_mode="Markdown"
-                )
-            except:
-                try:
-                    await bot.edit_message_text(
-                        chat_id=CHAT_ID, message_id=message_id,
-                        text=msg, parse_mode="Markdown"
-                    )
-                except:
-                    await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown")
-        else:
-            await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown")
-    asyncio.run(edit())
-    return jsonify({"ok": True})
-
 def kz_emoji(value):
     if value > 0:
         return "💚"
