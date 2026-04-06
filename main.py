@@ -81,28 +81,6 @@ def check_news(symbol):
         return upcoming
     except:
         return []
-        upcoming = []
-        for event in events:
-            if event.get("impact") not in ["High", "Medium"]:
-                continue
-            currency = event.get("country", "")
-            if not any(c == currency for c in currencies):
-                continue
-            try:
-                event_time = datetime.strptime(event["date"], "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=None)
-            except:
-                continue
-            diff = abs((event_time - now).total_seconds()) / 3600
-            if diff <= 4:
-                impact = event.get("impact")
-                if impact == "High":
-                    icon = "🔴"
-                else:
-                    icon = "🟡"
-                upcoming.append(f"{icon} {event.get('title','?')} ({currency}) - {event_time.strftime('%H:%M')} UTC")
-        return upcoming
-    except:
-        return []
 
 # Haber çevirisi için basit sözlük
 NEWS_TRANSLATIONS = {
