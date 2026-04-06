@@ -35,6 +35,19 @@ def load_trades():
     except:
         trades = []
 
+def fetch_news_data():
+    """Haber verisini retry ile çek"""
+    url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+    for i in range(3):
+        try:
+            r = req.get(url, timeout=10)
+            if r.status_code == 200:
+                return r.json()
+        except:
+            pass
+        time.sleep(2)
+    return None
+
 def check_news(symbol):
     try:
         currencies = []
@@ -42,12 +55,32 @@ def check_news(symbol):
         for p in pairs:
             if p in symbol.upper():
                 currencies.append(p)
-        now = datetime.utcnow()
-        url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
-        r = req.get(url, timeout=5)
-        if r.status_code != 200:
+        now    = datetime.utcnow()
+        events = fetch_news_data()
+        if not events:
             return []
-        events = r.json()
+        upcoming = []
+        for event in events:
+            if event.get("impact") not in ["High", "Medium"]:
+                continue
+            currency = event.get("country", "")
+            if not any(c == currency for c in currencies):
+                continue
+            try:
+                event_time = datetime.strptime(event["date"], "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=None)
+            except:
+                continue
+            diff = abs((event_time - now).total_seconds()) / 3600
+            if diff <= 4:
+                impact = event.get("impact")
+                if impact == "High":
+                    icon = "🔴"
+                else:
+                    icon = "🟠"
+                upcoming.append(f"{icon} {event.get('title','?')} ({currency}) - {event_time.strftime('%H:%M')} UTC")
+        return upcoming
+    except:
+        return []
         upcoming = []
         for event in events:
             if event.get("impact") not in ["High", "Medium"]:
@@ -626,17 +659,17 @@ def report(period):
 @app.route("/haber_all", methods=["GET"])
 def haber_all():
     try:
-        url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
-        r   = req.get(url, timeout=5)
-        if r.status_code != 200:
+        from datetime import timezone
+        from dateutil import parser as dateparser
+        events = fetch_news_data()
+        if not events:
             return jsonify({"error": "veri alınamadı"})
-        events = r.json()
-        today  = datetime.utcnow().date()
+        today  = datetime.now(timezone.utc).date()
         msg    = f"📅 *{today.strftime('%d.%m.%Y')} TÜM HABERLER*\n━━━━━━━━━━━━━━━\n"
         count  = 0
         for event in events:
             try:
-                event_time = datetime.strptime(event["date"], "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=None)
+                event_time = dateparser.parse(event["date"]).astimezone(timezone.utc)
             except:
                 continue
             if event_time.date() != today:
@@ -664,17 +697,17 @@ def haber_all():
 @app.route("/haber_important", methods=["GET"])
 def haber_important():
     try:
-        url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
-        r   = req.get(url, timeout=5)
-        if r.status_code != 200:
+        from datetime import timezone
+        from dateutil import parser as dateparser
+        events = fetch_news_data()
+        if not events:
             return jsonify({"error": "veri alınamadı"})
-        events = r.json()
-        today  = datetime.utcnow().date()
+        today  = datetime.now(timezone.utc).date()
         msg    = f"⚠️ *{today.strftime('%d.%m.%Y')} ÖNEMLİ HABERLER*\n━━━━━━━━━━━━━━━\n"
         count  = 0
         for event in events:
             try:
-                event_time = datetime.strptime(event["date"], "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=None)
+                event_time = dateparser.parse(event["date"]).astimezone(timezone.utc)
             except:
                 continue
             if event_time.date() != today:
@@ -695,11 +728,11 @@ def haber_important():
                 await bot.delete_message(chat_id=CHAT_ID, message_id=sent.message_id)
             except:
                 pass
+        import threading
         threading.Thread(target=lambda: asyncio.run(send_and_delete2()), daemon=True).start()
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)})
-
 mt5_bakiye_cache  = {}
 mt5_pozisyon_cache = {"positions": []}
 
